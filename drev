@@ -1,0 +1,98 @@
+#!/usr/bin/perl
+
+#
+# drev 0.2 - generate reverse dns zone for in-addr.arpa and ip6.arpa
+#
+# Copyright (C) 2013 Ralf Horstmann
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+#
+
+use Getopt::Std;
+use DNS::ZoneParse;
+use Net::IP qw(:PROC);
+
+sub usage {
+	print "usage: drev -i IN -o OUT -n NET [-d DOMAIN]\n";
+	exit 1;
+}
+
+sub zone_reverse_record {
+	my ($record, $range) = @_;
+
+	my $host = $record->{host};
+	my $ip = new Net::IP($host);
+	if ($range->overlaps($ip) == $IP_B_IN_A_OVERLAP) {
+		return $ip;
+	} else {
+		return 0;
+	}
+}
+
+sub zone_reverse_generate {
+	my ($zone, $range) = @_;
+	my $record;
+	my $records;
+	my $ip;
+	my $name;
+	my $ptr;
+	my @result;
+
+	if (ip_is_ipv4($range->ip())) {
+		$records = $zone->a();
+	} else {
+		$records = $zone->aaaa();
+	}
+
+	foreach $record (@$records) {
+		if ($ip = zone_reverse_record($record, $range)) {
+			$ptr = $ip->reverse_ip()
+				. "\tIN\tPTR\t"
+				. $record->{name} . "." . $zone->soa()->{ORIGIN};
+			push (@result, $ptr);
+		}
+	}
+	return @result;
+}
+
+sub zone_reverse {
+	my ($input, $filter, $output) = @_;
+	my $zone;
+	my $range;
+	my @rev;
+	my $ptr;
+	my $OUT;
+
+	$zone = DNS::ZoneParse->new($input);
+	$range = new Net::IP($filter) || die(Net::IP::Error());
+	@rev = zone_reverse_generate($zone, $range, 'internal');
+
+	open($OUT, ">$output") or die "Couldn't open file $output, $!";
+	foreach $ptr (@rev) {
+		print $OUT $ptr . "\n";
+	}
+	close($OUT);
+}
+
+sub main {
+	my %opts;
+
+	getopts('i:o:n:d:', \%opts) || usage();
+	usage unless $opts{i};
+	usage unless $opts{o};
+	usage unless $opts{n};
+
+	zone_reverse($opts{i}, $opts{n}, $opts{o});
+}
+
+main();
