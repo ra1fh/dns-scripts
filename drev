@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 
 #
-# drev 0.2 - generate reverse dns zone for in-addr.arpa and ip6.arpa
+# drev 0.3 - generate reverse dns zone for in-addr.arpa and ip6.arpa
 #
-# Copyright (C) 2013 Ralf Horstmann
+# Copyright (C) 2014 Ralf Horstmann
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -23,7 +23,7 @@ use DNS::ZoneParse;
 use Net::IP qw(:PROC);
 
 sub usage {
-	print "usage: drev -i IN -o OUT -n NET [-d DOMAIN]\n";
+	print "usage: drev -i IN -o OUT -n NET\n";
 	exit 1;
 }
 
@@ -75,7 +75,7 @@ sub zone_reverse {
 
 	$zone = DNS::ZoneParse->new($input);
 	$range = new Net::IP($filter) || die(Net::IP::Error());
-	@rev = zone_reverse_generate($zone, $range, 'internal');
+	@rev = zone_reverse_generate($zone, $range);
 
 	open($OUT, ">$output") or die "Couldn't open file $output, $!";
 	foreach $ptr (@rev) {
@@ -87,7 +87,7 @@ sub zone_reverse {
 sub main {
 	my %opts;
 
-	getopts('i:o:n:d:', \%opts) || usage();
+	getopts('i:o:n:', \%opts) || usage();
 	usage unless $opts{i};
 	usage unless $opts{o};
 	usage unless $opts{n};
