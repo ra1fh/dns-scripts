@@ -24,6 +24,10 @@ use Net::IP qw(:PROC);
 
 sub usage {
 	print "usage: drev -i IN -o OUT -n NET\n";
+	print "       -i IN      input zone\n";
+	print "       -o OUT     output reverse zone\n";
+	print "       -n NET     network range to filter\n";
+
 	exit 1;
 }
 
